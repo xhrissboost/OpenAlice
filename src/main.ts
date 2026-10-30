@@ -50,6 +50,8 @@ import { createReferenceData } from './domain/market-data/reference/service.js'
 import { createSectorRotationTools } from './tool/sector-rotation.js'
 import { createReferenceBoardTools } from './tool/reference-board.js'
 import { createDerivativesTools } from './tool/derivatives.js'
+import { createPolymarketClient } from './domain/polymarket/client.js'
+import { createPolymarketTools } from './tool/polymarket.js'
 import { createIndexTools } from './tool/indices.js'
 import { createEconomyTools } from './tool/economy.js'
 import { SessionStore } from './core/session.js'
@@ -280,6 +282,9 @@ async function main() {
     toolCenter.register(createIndexTools(indexClient), 'indices')
   }
   toolCenter.register(createEconomyTools(economyClient, commodityClient), 'economy')
+  // Public Polymarket reads plus a plan that does not POST unless a submitter
+  // is injected. The default client has none, so agents cannot trade live.
+  toolCenter.register(createPolymarketTools(createPolymarketClient()), 'polymarket')
 
   console.log(`tool-center: ${toolCenter.list().length} tools registered`)
 
