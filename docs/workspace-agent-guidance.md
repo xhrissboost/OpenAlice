@@ -45,6 +45,7 @@ One concept has one primary owner:
 | K-line discovery, raw OHLCV, freshness and reply chart references | `market-data` |
 | Optional quantitative formulas and snapshots | `alice-analysis` |
 | Broker accounts/contracts/quotes and trading writes | `alice-uta` |
+| Polymarket discovery, CLOB books, and order plans | `polymarket` |
 
 Other instructions may route to that owner but should not copy its manual.
 
@@ -66,7 +67,7 @@ flat command bag:
 
 | CLI | Boundary |
 |---|---|
-| `alice` | Research data, subscribed-feed archive, symbols, K-lines, Workspace collaboration, Inbox, Issues, Sessions and tracked assets |
+| `alice` | Research data, subscribed-feed archive, symbols, K-lines, Polymarket discovery and order plans, Workspace collaboration, Inbox, Issues, Sessions and tracked assets |
 | `traderhub` | Low-frequency boards, fundamentals, macro, and calendars |
 | `alice-uta` | Broker reads plus explicit trading mutations and approval flow |
 
