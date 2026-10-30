@@ -267,6 +267,20 @@ The chart displays exclusions separately from freshness; neither CLI nor UI
 substitutes a quote or switches sources to manufacture a complete candle.
 Diagnostics describe rows reaching the bar service, not invisible upstream gaps.
 
+## Polymarket
+
+Polymarket is not a bar vendor and not a Broker Pack. `src/domain/polymarket/`
+reads the public Gamma API for discovery and the public CLOB book for quotes.
+`alice polymarket select` drops markets whose book is one-sided, wider than the
+spread cap, or thinner than the near-touch depth floor. v1 outcomes are quoted
+by CLOB token id; v2 outcomes are quoted by position id.
+
+`alice polymarket plan` checks tick size, minimum size, post-only crossing, and
+FOK/FAK depth, then returns 6-decimal maker and taker amounts. The default
+client has no order submitter, so a plan is not POSTed to `clob.polymarket.com`.
+A submitter has to be injected by the caller and still receives only the
+economic order. OpenAlice does not store Polymarket credentials for this path.
+
 ## Market references in replies
 
 `[[market/{barId}/{interval}]]` is a reserved Connector Protocol reference,

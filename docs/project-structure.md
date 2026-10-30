@@ -72,7 +72,8 @@ src/                           Alice process
 │   ├── market-data/           market/fundamental data access
 │   ├── analysis/              indicators and technical analysis
 │   ├── news/                  RSS collection and archive search
-│   └── thinking/              safe expression evaluation
+│   ├── thinking/              safe expression evaluation
+│   └── polymarket/            public Gamma discovery, CLOB books, and plan-only orders
 ├── tool/                      agent-facing tool definitions and bridges
 ├── workspaces/                launcher, PTYs, templates, adapters, issues,
 │   │                          schedules, CLI shims, file/git operations
