@@ -247,6 +247,12 @@ const agentSchema = z.object({
    *  in the UI behind a danger warning + double-confirm. Per-account `readOnly`
    *  still wins: proposals can exist, but push cannot mutate the account. */
   allowAiTrading: z.boolean().default(false),
+  /**
+   * Polymarket CLOB auto trading. Off by default, so plans are not posted.
+   * `POLYMARKET_AUTO_TRADE=1` enables the same path. Credentials stay in the
+   * environment; this flag never stores a key.
+   */
+  polymarketAutoTrade: z.boolean().default(false),
   claudeCode: z.object({
     allowedTools: z.array(z.string()).optional(),
     disallowedTools: z.array(z.string()).default([

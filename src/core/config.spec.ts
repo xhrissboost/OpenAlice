@@ -135,6 +135,7 @@ describe('readAgentConfig', () => {
     const cfg = await readAgentConfig()
     expect(cfg.maxSteps).toBe(20)
     expect(cfg.allowAiTrading).toBe(false)
+    expect(cfg.polymarketAutoTrade).toBe(false)
   })
 
   it('parses maxSteps from file', async () => {

@@ -27,7 +27,7 @@ accepted and available revisions separately.
 `ALICE_HARNESS_SKILLS` in `src/workspaces/alice-harness-policy.ts` is the
 authoritative catalog of complete Alice-owned Skill trees, including the
 `market-data` raw-history capability and the `polymarket` public CLOB
-discovery, quote, and plan-only order capability. The legacy catalog additionally covers
+discovery, quote, plan, and gated auto-submit capability. The legacy catalog additionally covers
 removal/reconciliation of `alice-workspace` copies. `.agents/skills` is primary
 and `.claude/skills` is its runtime mirror; old `.pi/skills` duplicates are
 included only for reconciliation. Template-declared instructions, README and

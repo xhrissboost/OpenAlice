@@ -2,8 +2,9 @@
 name: polymarket
 description: >
   Use when discovering Polymarket markets, comparing CLOB liquidity, reading an
-  order book or quote, or planning a prediction-market order. Does not place a
-  live order unless a submitter is configured, which the default process is not.
+  order book or quote, planning an order, or running auto mode. Auto mode does
+  not place a live order unless POLYMARKET_AUTO_TRADE or agent.polymarketAutoTrade
+  is enabled.
 ---
 
 # Polymarket
@@ -48,6 +49,18 @@ the book; FOK fails when depth is short, FAK shrinks to the resting size.
 `--post-only` rejects a price that would cross.
 
 The plan's `makerAmount` and `takerAmount` are 6-decimal base units. `submit`
-defaults off. Passing `--submit` still does not POST unless this process was
-constructed with a submitter. The running OpenAlice process is not. Do not
-invent API keys, passphrases, or signatures.
+defaults off. With auto trading off, `--submit` still does not POST.
+
+## Auto mode
+
+```bash
+alice polymarket auto --q "fed rate" --side BUY --size 10 --price 0.42
+```
+
+Auto mode selects the best liquid outcome, plans the order, and submits it in
+one step. It does not ask for Trading-as-Git approval. It posts only when
+`POLYMARKET_AUTO_TRADE=1` or `agent.polymarketAutoTrade` is true, and only when
+`POLYMARKET_PRIVATE_KEY`, `POLYMARKET_API_KEY`, `POLYMARKET_API_SECRET`, and
+`POLYMARKET_API_PASSPHRASE` are already set. A proxy wallet also needs
+`POLYMARKET_FUNDER` and `POLYMARKET_SIGNATURE_TYPE` (`1`, `2`, or `3`). Missing
+material fails closed and the plan is returned unsent. Do not invent keys.

@@ -11,7 +11,8 @@ describe('polymarket tools', () => {
     const plan = vi.fn(async () => ({ status: 'planned', submitted: false, submission: 'not-requested' }))
     const client = { plan } as unknown as PolymarketClient
     const tools = createPolymarketTools(client)
-    expect(tools.polymarketPlanOrder.description).toMatch(/does not POST/)
+    expect(tools.polymarketPlanOrder.description).toMatch(/does not POST|refused unless/)
+    expect(tools.polymarketAuto.description).toMatch(/nothing is POSTed/)
     const result = await run(tools.polymarketPlanOrder, {
       assetId: 'yes-token',
       side: 'BUY',

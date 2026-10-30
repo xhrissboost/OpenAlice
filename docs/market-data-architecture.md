@@ -276,10 +276,13 @@ spread cap, or thinner than the near-touch depth floor. v1 outcomes are quoted
 by CLOB token id; v2 outcomes are quoted by position id.
 
 `alice polymarket plan` checks tick size, minimum size, post-only crossing, and
-FOK/FAK depth, then returns 6-decimal maker and taker amounts. The default
-client has no order submitter, so a plan is not POSTed to `clob.polymarket.com`.
-A submitter has to be injected by the caller and still receives only the
-economic order. OpenAlice does not store Polymarket credentials for this path.
+FOK/FAK depth, then returns 6-decimal maker and taker amounts. `alice polymarket auto`
+runs search, that liquidity filter, and the planner in one step. The order is
+signed and POSTed to `clob.polymarket.com` only when `POLYMARKET_AUTO_TRADE=1`
+or `agent.polymarketAutoTrade` is true and the CLOB key material is already in
+the environment. Otherwise the plan is refused and nothing is sent. OpenAlice
+does not store Polymarket credentials for this path and does not use the
+Trading-as-Git approval step.
 
 ## Market references in replies
 

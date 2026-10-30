@@ -3,6 +3,7 @@ import { parseEventMarkets, parseGammaMarket, parseKeysetIds, parseSearchEvents 
 import { parseOrderBook, quoteFromBook } from './book.js'
 import { DEFAULT_LIQUIDITY_CRITERIA, judgeLiquidity, pickOutcome, rankMarkets } from './select.js'
 import { planOrder, type PlanOrderInput } from './order.js'
+import { polymarketRefusalReason, type PolymarketTradingMode } from './trading.js'
 
 export const POLYMARKET_GAMMA_URL = 'https://gamma-api.polymarket.com'
 export const POLYMARKET_CLOB_URL = 'https://clob.polymarket.com'
@@ -32,6 +33,8 @@ export interface PolymarketSubmitBody {
     makerAmount: string
     takerAmount: string
     expiration: string
+    /** Selects the neg-risk exchange when signing. */
+    negRisk?: boolean
   }
 }
 
@@ -67,9 +70,21 @@ export interface SelectQuery extends DiscoverQuery {
 export interface PlanQuery extends PlanOrderInput {
   assetId: string
   book?: PolymarketBook
-  /** Ask to submit. Ignored unless this client was given a submitter. */
+  /** Ask to submit. Refused unless auto trading is enabled and a submitter exists. */
   submit?: boolean
   expiration?: number
+}
+
+export interface AutoQuery extends SelectQuery, PlanOrderInput {}
+
+export interface AutoResult {
+  status: 'planned' | 'rejected'
+  submitted: boolean
+  submission: OrderPlan['submission']
+  reason?: string
+  market: PolymarketMarket | null
+  assetId: string | null
+  plan: OrderPlan | null
 }
 
 function clampLimit(limit: number | undefined, fallback: number): number {
@@ -104,6 +119,8 @@ export interface PolymarketClientOptions {
   clobUrl?: string
   transport?: PolymarketTransport
   submitter?: PolymarketSubmitter
+  /** Why a submit was refused. Does not itself enable posting. */
+  trading?: PolymarketTradingMode
 }
 
 export interface PolymarketClient {
@@ -112,6 +129,8 @@ export interface PolymarketClient {
   quote(assetId: string, depthBand?: number): Promise<PolymarketQuote>
   select(query?: SelectQuery): Promise<{ selected: RankedMarket[]; rejected: RankedMarket[] }>
   plan(query: PlanQuery): Promise<OrderPlan>
+  /** Select the best liquid market, plan, and submit only when a submitter is configured. */
+  auto(query: AutoQuery): Promise<AutoResult>
 }
 
 export function createPolymarketClient(options: PolymarketClientOptions = {}): PolymarketClient {
@@ -119,6 +138,7 @@ export function createPolymarketClient(options: PolymarketClientOptions = {}): P
   const clobUrl = (options.clobUrl ?? POLYMARKET_CLOB_URL).replace(/\/$/, '')
   const transport = options.transport ?? createFetchTransport()
   const submitter = options.submitter
+  const trading = options.trading
 
   async function getOptional(url: string): Promise<unknown | undefined> {
     try {
@@ -218,7 +238,7 @@ export function createPolymarketClient(options: PolymarketClientOptions = {}): P
         ...planned,
         submitted: false,
         submission: 'refused',
-        reason: 'No Polymarket submitter is configured. The order was planned and was not sent to the CLOB.',
+        reason: polymarketRefusalReason(trading),
       }
     }
     const ack = await submitter.submit({
@@ -233,6 +253,7 @@ export function createPolymarketClient(options: PolymarketClientOptions = {}): P
         makerAmount: planned.makerAmount,
         takerAmount: planned.takerAmount,
         expiration: query.orderType === 'GTD' && query.expiration != null ? String(query.expiration) : '0',
+        negRisk: nextBook.negRisk,
       },
     })
     return {
@@ -243,5 +264,41 @@ export function createPolymarketClient(options: PolymarketClientOptions = {}): P
     }
   }
 
-  return { discover, book, quote, select, plan }
+  async function auto(query: AutoQuery): Promise<AutoResult> {
+    const ranked = await select({
+      q: query.q,
+      slug: query.slug,
+      outcome: query.outcome,
+      maxSpread: query.maxSpread,
+      minDepthUsd: query.minDepthUsd,
+      depthBand: query.depthBand,
+      limit: 1,
+      markets: query.markets,
+    })
+    const pick = ranked.selected[0]
+    if (!pick?.outcome) {
+      const rejected = ranked.rejected[0]
+      return {
+        status: 'rejected',
+        submitted: false,
+        submission: 'refused',
+        reason: rejected?.reason ?? 'no liquid market',
+        market: rejected?.market ?? null,
+        assetId: null,
+        plan: null,
+      }
+    }
+    const planned = await plan({ ...query, assetId: pick.outcome.assetId, submit: true })
+    return {
+      status: planned.status,
+      submitted: planned.submitted,
+      submission: planned.submission,
+      ...(planned.reason ? { reason: planned.reason } : {}),
+      market: pick.market,
+      assetId: pick.outcome.assetId,
+      plan: planned,
+    }
+  }
+
+  return { discover, book, quote, select, plan, auto }
 }

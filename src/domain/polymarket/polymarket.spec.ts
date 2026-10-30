@@ -4,6 +4,7 @@ import { parseOrderBook, quoteFromBook } from './book.js'
 import { judgeLiquidity, rankMarkets } from './select.js'
 import { limitOrderAmounts, planOrder, toBaseUnits } from './order.js'
 import { createPolymarketClient, PolymarketError, type PolymarketTransport } from './client.js'
+import { createPolymarketRuntime } from './runtime.js'
 import type { PolymarketBook, PolymarketMarket, RankedMarket } from './types.js'
 
 const V1 = {
@@ -295,5 +296,139 @@ describe('Polymarket client', () => {
       }),
     }))
     expect(http.gets).toEqual([])
+  })
+})
+
+describe('auto mode', () => {
+  const creds = {
+    POLYMARKET_PRIVATE_KEY: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+    POLYMARKET_API_KEY: 'key-1',
+    POLYMARKET_API_SECRET: 'dGVzdC1zZWNyZXQ=',
+    POLYMARKET_API_PASSPHRASE: 'pass-1',
+  }
+
+  function liquidHttp(): PolymarketTransport & { gets: string[] } {
+    const gets: string[] = []
+    return {
+      gets,
+      async getJson(url: string) {
+        gets.push(url)
+        if (!url.includes('token_id=12345')) throw new PolymarketError(`not found ${url}`, 404)
+        return {
+          asset_id: '12345',
+          bids: [{ price: '0.45', size: '1000' }],
+          asks: [{ price: '0.47', size: '1000' }],
+          tick_size: '0.01',
+          min_order_size: '5',
+          neg_risk: false,
+        }
+      },
+    }
+  }
+
+  it('refuses to submit when auto trading is disabled', async () => {
+    const posts: string[] = []
+    const http = liquidHttp()
+    const runtime = createPolymarketRuntime({
+      autoTrade: false,
+      env: creds,
+      transport: http,
+      fetchImpl: async () => {
+        posts.push('post')
+        throw new Error('disabled auto mode posted')
+      },
+    })
+    expect(runtime.mode.enabled).toBe(false)
+    const result = await runtime.client.auto({
+      side: 'BUY',
+      size: 10,
+      price: 0.44,
+      markets: [{
+        id: 'liquid',
+        slug: 'liquid',
+        question: 'Liquid',
+        conditionId: '0x1',
+        version: 'v1',
+        outcomes: [{ name: 'Yes', assetId: '12345', index: 0 }],
+        closed: false,
+        acceptingOrders: true,
+        enableOrderBook: true,
+        liquidityUsd: 1000,
+        volume24hrUsd: 100,
+      }],
+    })
+    expect(result.submission).toBe('refused')
+    expect(result.submitted).toBe(false)
+    expect(result.plan?.makerAmount).toBe('4400000')
+    expect(result.reason).toMatch(/POLYMARKET_AUTO_TRADE/)
+    expect(posts).toEqual([])
+    expect(http.gets.some((url) => url.includes('/order'))).toBe(false)
+  })
+
+  it('submits the planned order when auto trading is enabled', async () => {
+    const posts: Array<{ url: string; body: string }> = []
+    const http = liquidHttp()
+    const runtime = createPolymarketRuntime({
+      autoTrade: true,
+      env: creds,
+      transport: http,
+      fetchImpl: async (input, init) => {
+        posts.push({ url: String(input), body: String(init?.body) })
+        return new Response(JSON.stringify({ success: true, orderID: 'ord-auto', status: 'live' }), { status: 200 })
+      },
+    })
+    expect(runtime.mode.enabled).toBe(true)
+    const result = await runtime.client.auto({
+      side: 'BUY',
+      size: 10,
+      price: 0.44,
+      markets: [{
+        id: 'liquid',
+        slug: 'liquid',
+        question: 'Liquid',
+        conditionId: '0x1',
+        version: 'v1',
+        outcomes: [{ name: 'Yes', assetId: '12345', index: 0 }],
+        closed: false,
+        acceptingOrders: true,
+        enableOrderBook: true,
+        liquidityUsd: 1000,
+        volume24hrUsd: 100,
+      }],
+    })
+    expect(result.submitted).toBe(true)
+    expect(result.submission).toBe('submitted')
+    expect(result.assetId).toBe('12345')
+    expect(posts).toHaveLength(1)
+    expect(posts[0]?.url).toContain('/order')
+    expect(JSON.parse(posts[0]?.body ?? '{}')).toMatchObject({
+      orderType: 'GTC',
+      order: { makerAmount: '4400000', takerAmount: '10000000', tokenId: '12345', side: 'BUY' },
+    })
+  })
+
+  it('fails closed when auto trading is enabled without credentials', async () => {
+    const posts: string[] = []
+    const runtime = createPolymarketRuntime({
+      autoTrade: true,
+      env: {},
+      transport: liquidHttp(),
+      fetchImpl: async () => {
+        posts.push('post')
+        throw new Error('missing credentials posted')
+      },
+    })
+    expect(runtime.mode).toMatchObject({ enabled: false, reason: 'missing-credentials' })
+    const result = await runtime.client.plan({
+      assetId: '12345',
+      book: book({ assetId: '12345' }),
+      side: 'BUY',
+      size: 10,
+      price: 0.44,
+      submit: true,
+    })
+    expect(result.submission).toBe('refused')
+    expect(result.reason).toMatch(/POLYMARKET_PRIVATE_KEY/)
+    expect(posts).toEqual([])
   })
 })

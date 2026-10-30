@@ -50,7 +50,7 @@ import { createReferenceData } from './domain/market-data/reference/service.js'
 import { createSectorRotationTools } from './tool/sector-rotation.js'
 import { createReferenceBoardTools } from './tool/reference-board.js'
 import { createDerivativesTools } from './tool/derivatives.js'
-import { createPolymarketClient } from './domain/polymarket/client.js'
+import { createPolymarketRuntime } from './domain/polymarket/runtime.js'
 import { createPolymarketTools } from './tool/polymarket.js'
 import { createIndexTools } from './tool/indices.js'
 import { createEconomyTools } from './tool/economy.js'
@@ -282,9 +282,11 @@ async function main() {
     toolCenter.register(createIndexTools(indexClient), 'indices')
   }
   toolCenter.register(createEconomyTools(economyClient, commodityClient), 'economy')
-  // Public Polymarket reads plus a plan that does not POST unless a submitter
-  // is injected. The default client has none, so agents cannot trade live.
-  toolCenter.register(createPolymarketTools(createPolymarketClient()), 'polymarket')
+  // Public Polymarket reads. Auto submit stays off unless POLYMARKET_AUTO_TRADE
+  // or agent.polymarketAutoTrade is set and CLOB credentials are in the environment.
+  toolCenter.register(createPolymarketTools(createPolymarketRuntime({
+    autoTrade: config.agent.polymarketAutoTrade,
+  }).client), 'polymarket')
 
   console.log(`tool-center: ${toolCenter.list().length} tools registered`)
 

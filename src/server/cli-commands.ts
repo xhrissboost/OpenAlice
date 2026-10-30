@@ -63,6 +63,7 @@ const BASE_EXPORTS: Record<string, CliExport> = {
         book: 'polymarketBook',
         quote: 'polymarketQuote',
         plan: 'polymarketPlanOrder',
+        auto: 'polymarketAuto',
       },
     },
   },
